@@ -131,7 +131,7 @@ async def on_message(message):
         Assign the task "Post on social media" to the Marketing team.
         Aassign the task "Announce in Discord" to the President or Vice President.
         If a request is too vague to assign tasks (e.g., it's missing a date or budget), you must ask clarifying questions.
-        Treasurer needs to handle
+        Treasurer needs to manage Financial related things
         Do not ask question.
         Assign the necessary tasks based on the rules.
         It is better to assign different person on a same team for the different task.
