@@ -10,21 +10,32 @@ The bot is designed to be secure, configurable, and persistent, storing all club
 
 Here are the commands you can use in your designated Discord channel.
 
-> `addmenber`
-> Adds a new board member to the system.
-> Format: >`addmenber` Full Name, Role
-> Example: >`addmenber` Jane Doe, President
+`>addmenber`
 
-> `listmembers`
-> Displays a list of all current board members and their roles.
-> Format: >`listmembers`
+Adds a new board member to the system.
 
-> `addresponsibility`
-> Adds a specific responsibility to an existing member.
-> Format: >`addresponsibility` Full Name, Responsibility Description
-> Example: >`addresponsibility` Jane Doe, Run weekly meetings
+Format: >addmenber Full Name, Role
 
-> `assigntask`
-> Asks the Gemini AI to analyze a new event or project, break it down into sub-tasks, and assign them to the appropriate members based on their roles and responsibilities.
-> Format: >`assigntask` [Detailed description of the event or project]
-> Example: >`assigntask` Plan the General Interest Meeting for October 5th
+Example: >addmenber Jane Doe, President
+
+`>listmembers`
+
+Displays a list of all current board members and their roles.
+
+Format: >listmembers
+
+`>addresponsibility`
+
+Adds a specific responsibility to an existing member.
+
+Format: >addresponsibility Full Name, Responsibility Description
+
+Example: >addresponsibility Jane Doe, Run weekly meetings
+
+`>assigntask`
+
+Asks the Gemini AI to analyze a new event or project, break it down into sub-tasks, and assign them to the appropriate members based on their roles and responsibilities.
+
+Format: >assigntask [Detailed description of the event or project]
+
+Example: >assigntask Plan the General Interest Meeting for October 5th
