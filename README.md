@@ -24,13 +24,13 @@ Displays a list of all current board members and their roles.
 
 Format: >listmembers
 
-`>addresponsibility`
+`>addresponsibilities`
 
 Adds a specific responsibility to an existing member.
 
-Format: >addresponsibility Full Name, Responsibility Description
+Format: >addresponsibilities Full Name, Responsibility Description
 
-Example: >addresponsibility Jane Doe, Run weekly meetings
+Example: >addresponsibilities Jane Doe, Run weekly meetings
 
 `>assigntask`
 
