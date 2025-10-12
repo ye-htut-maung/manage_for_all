@@ -25,11 +25,6 @@ intents.message_content = True
 # client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix = '>', intents = intents) # Prefix is now fallback
 
-# ----- GLOBAL CHECK -----
-# A global check to ensure commands only run in allowed channels
-@bot.check
-async def restrict_to_all_channels(ctx):
-    return ctx.channel.id in ALLOWED_CHANNEL_IDS
 
 # ----- DATA LOADING -----
 # attach the 'members' list to the bot itself so Cogs can access it
@@ -40,6 +35,15 @@ try:
 except(FileNotFoundError, json.JSONDecodeError):
     bot.members=[]
     print("members.json not found or empty, starting with an empty list.")
+
+# load tasks
+try:
+    with open('tasks.json', 'r') as f:
+        bot.tasks = json.load(f)
+    print("Tasks data loaded successfully.")
+except(FileNotFoundError, json.JSONDecodeError):
+    bot.tasks = []
+    print("tasks.json not found or empty, starting with an empty lists.")
 
 # ----- COG LOADING & READY EVENT -----
 
