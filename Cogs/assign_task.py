@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import json
 import os
 from google import genai
@@ -17,15 +18,19 @@ class Tasks(commands.Cog):
             self.model = None
             print(f"Error initializing Gemini model: {e}")
     
-    @commands.command(name="assigntask")
-    async def assign_task(self, ctx, *, task_description):
+    @app_commands.command(name="assigntask", description="Uses AI to assign tasks for a new event")
+    @app_commands.describe(task_description="A detailed description of the event or project to be planned.")
+    async def assign_task(self,interaction:discord.Interaction, task_description:str):
         if not self.ai_client:
-            await ctx.send("Sorry, the AI model is not configured correctly. Please check the API key.")
+            await interaction.response.send_message("Sorry, the AI model is not configured correctly. Please check the API key.")
             return
         rules = load_rules()
         if not rules:
-            await ctx.send("⚠️ **Error:** No prompt rules are defined. A user must add rules using the `>addrule` command before tasks can be assigned.")
+            await interaction.response.send_message("⚠️ **Error:** No prompt rules are defined. A user must add rules using the `>addrule` command before tasks can be assigned.")
             return
+
+        # Use defer() to acknoledge the command and show a "Thinking..." state
+        await interaction.response.defer()
 
         formatted_rules = "\n".join(f"{i+1}. {rule}" for i, rule in enumerate(rules))
 
@@ -45,7 +50,7 @@ class Tasks(commands.Cog):
 
         print("--- Sending Prompt to Gemini ---")
 
-        await ctx.send("🤖 Thinking... Please wait a moment.")
+        # await ctx.send("🤖 Thinking... Please wait a moment.")
 
         try:
             response = self.ai_client.models.generate_content(
@@ -54,20 +59,21 @@ class Tasks(commands.Cog):
             )
             ai_response_text = response.text
             # Send the response in chunks (Discord only accept 2000 characters)
+            # Use followup.send() for all messages after defer()
             if len(ai_response_text) > 2000:
                 for i in range(0, len(ai_response_text), 2000):
                     chunk = ai_response_text[i:i+2000]
-                    await ctx.send(chunk)
+                    await interaction.followup.send(chunk)
             else:
-                await ctx.send(ai_response_text)
+                await interaction.followup.send(ai_response_text)
 
 
         except Exception as e:
-            await ctx.send(f"An error occurred while contacting the AI: {e}")
+            await interaction.followup.send(f"An error occurred while contacting the AI: {e}")
             print(f"Error generating content: {e}")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Tasks(bot))
         
         

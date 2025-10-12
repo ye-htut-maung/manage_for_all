@@ -23,7 +23,7 @@ intents.message_content = True
 
 # change client to commands.Bot to get comamnd handling
 # client = discord.Client(intents=intents)
-bot = commands.Bot(command_prefix = '>', intents = intents)
+bot = commands.Bot(command_prefix = '>', intents = intents) # Prefix is now fallback
 
 # ----- GLOBAL CHECK -----
 # A global check to ensure commands only run in allowed channels
@@ -52,6 +52,12 @@ async def on_ready():
         if filename.endswith('.py'):
             await bot.load_extension(f"Cogs.{filename[:-3]}")
             print(f'Loaded Cog: {filename}')
+    # Sync the command tree
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} commands")
+    except Exception as e:
+        print(e)
 
 
 # ----- RUN THE BOT -----
