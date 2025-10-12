@@ -10,8 +10,6 @@ from utils.data_manager import load_rules
 class Tasks(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    
         try:
             self.ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         except Exception as e:
@@ -36,7 +34,7 @@ class Tasks(commands.Cog):
 
         json_members_context = json.dumps(self.bot.members, indent = 2)
 
-        full_prompt = (
+        initial_prompt = (
             "You are a project manager for a university computer science club. "
             "Your task is to take a new event request and break it down into smaller sub-tasks, "
             "assigning them to the correct board members based on the rules provided.\n\n"
@@ -44,7 +42,9 @@ class Tasks(commands.Cog):
             f"{formatted_rules}\n\n"
             f"Here is the list of board members and their responsibilities:\n{json_members_context}\n\n"
             f"Here is the new event request:\n'{task_description}'\n\n"
-            "Assign the necessary tasks based on the rules."
+            "Assign the necessary tasks based on the rules.\n"
+            "If a request is too vague to assign tasks, you must ask clarifying questions.\n"
+            "If you need to ask a clarifying question, your entire response must begin with the exact prefix 'QUESTIONS:' and nothing else."
         )
 
 
@@ -55,9 +55,40 @@ class Tasks(commands.Cog):
         try:
             response = self.ai_client.models.generate_content(
                 model = 'gemini-2.5-flash',
-                contents = full_prompt
+                contents = initial_prompt
             )
             ai_response_text = response.text
+
+
+            if ai_response_text.strip().startswith("QUESTIONS:"):
+                question_text = ai_response_text.replace("QUESTIONS:", "").strip()
+                await interaction.followup.send(f"🤖 The AI needs more information:\n> {question_text}")
+
+                def check(m):
+                    return m.author == interaction.user and m.channel == interaction.channel
+
+                try:
+                    # wait for 300 sec or 5 min
+                    user_reply = await self.bot.wait_for('message', check = check, timeout=300.0)
+
+                    await interaction.followup.send("🤖 Got it. Thinking again with your new information...")
+
+                    follow_up_prompt = (
+                        f"{initial_prompt}\n\n"
+                        f"The user's first request was too vague. You asked: '{question_text}'\n"
+                        f"The user has now provided the following additional information: '{user_reply.content}'\n\n"
+                        "Please provide the final task assignments based on all this information."
+                    )
+
+                    final_response = self.ai_client.models.generate_content(
+                        model = 'gemini-2.5-flash',
+                        contents = follow_up_prompt
+                    )
+                    ai_response_text = final_response.text
+                except asyncio.TimeoutError:
+                    await interaction.followup.send("You took too long to reply. Please start the command again.")
+                    return
+
             # Send the response in chunks (Discord only accept 2000 characters)
             # Use followup.send() for all messages after defer()
             if len(ai_response_text) > 2000:
