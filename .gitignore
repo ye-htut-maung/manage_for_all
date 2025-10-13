@@ -4,3 +4,10 @@ test_gemini.py
 Archive.zip
 NOTE.md
 journal.md
+db_scripts.md
+Archive
+rules.json
+tasks.json
+Cogs/__pycache__
+utils/__pycache__
+.ropeproject

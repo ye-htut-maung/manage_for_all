@@ -1,47 +1,46 @@
 import discord
 from discord.ext import commands
-from utils.data_manager import load_rules, save_rules
+from discord import app_commands
+from utils.data_manager import get_all_rules_from_db, add_rule_to_db, delete_rule_from_db
 
 class Rules(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
 
-    @commands.command(name="viewrules")
-    async def view_rules(self, ctx):
+    @app_commands.command(name="viewrules", description="Displays the current list of AI prompt rules.")
+    async def view_rules(self, interaction: discord.Interaction):
         #Displays the current list of AI prompt rules.
-        rules = load_rules()
+        rules = await get_all_rules_from_db(self.bot.db_pool)
         if not rules:
-            await ctx.send("There are no rules defined yet. Use `>addrule` to create one.")
+            await interaction.response.send_message("There are no rules defined yet. Use `/addrule` to create one.")
             return
+        embed = discord.Embed(title="📋 Current AI Prompt Rules", color=discord.Color.purple())
+        # Format the rules from the database records into a numbered list
+        description = "\n".join(f"**{rule['id']}.** {rule['rule_text']}" for rule in rules)
+        embed.description = description
         
-        response = "📋 **Current AI Prompt Rules:**\n"
-        for i, rule_text in enumerate(rules):
-            response += f"**{i+1}.** {rule_text}\n"
+        await interaction.response.send_message(embed=embed)
         
-        await ctx.send(response)
 
-    @commands.command(name="addrule")
-    async def add_rule(self, ctx, *, rule_text: str):
-        rules = load_rules()
-        # Adds a new rule to the AI prompt. 
-        rules.append(rule_text)
-        save_rules(rules)
-        await ctx.send(f"✅ Rule added: \"{rule_text}\"")
+    @app_commands.command(name="addrule", description="Adds a new rule for the AI prompt.")
+    @app_commands.describe(rule_text="The exact text of the rule you want to add.")
+    async def add_rule(self,interaction: discord.Interaction, rule_text:str):
+        success = await add_rule_to_db(self.bot.db_pool, rule_text)
+        if success:
+            await interaction.response.send_message(f"✅ Rule added: \"{rule_text}\"")
+        else:
+            await interaction.response.send_message("❌ An error occurred while adding the rule.", ephemeral=True)
 
-    @commands.command(name="deleterule")
-    async def delete_rule(self, ctx, rule_number: int):
-        
-        # Deletes a rule by its number.
-        rules = load_rules()
-        if not 1 <= rule_number <= len(rules):
-            await ctx.send(f"Error: Invalid rule number. Please use `>viewrules` to see the list.")
-            return
-        
-        # Adjust for zero-based index
-        removed_rule = rules.pop(rule_number - 1)
-        save_rules(rules)
-        await ctx.send(f"🗑️ Rule #{rule_number} deleted: \"{removed_rule}\"")
+    @app_commands.command(name="deleterule", description="Deletes a rule by its number.")
+    @app_commands.describe(rule_id="The ID number of the rule to delete.")
+    async def delete_rule(self, interaction: discord.Interaction, rule_id: int):
+        deleted_rule_text = await delete_rule_from_db(self.bot.db_pool, rule_id)
+        if deleted_rule_text:
+            await interaction.response.send_message(f"🗑️ Rule #{rule_id} deleted: \"{deleted_rule_text}\"")
+        else:
+            await interaction.response.send_message(f"❌ Error: Rule #{rule_id} was not found.", ephemeral=True)
 
-async def setup(bot):
+
+async def setup(bot: commands.Bot):
     await bot.add_cog(Rules(bot))

@@ -1,4 +1,3 @@
-
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -11,44 +10,42 @@ class HelpCog(commands.Cog):
     async def help(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="🤖 Manage for All Bot Help",
-            description="Welcome! This bot uses Slash Commands. Just type `/` to see all available commands and their descriptions.",
+            description="This bot helps manage the club's board members, responsibilities, and tasks using Slash Commands. Just type `/` to see a list.",
             color=discord.Color.blue()
         )
+        embed.set_footer(text="Start typing any command to see its specific options and descriptions.")
 
         embed.add_field(
             name="👥 Member Management",
-            value="`/addmember` - Adds a new member.\n"
-                  "`/listmembers` - Lists all members.",
+            value="`/addmember` - Add a new member.\n"
+                  "`/editmember` - Edit a member's name or role.\n"
+                  "`/deletemember` - Delete a member.\n"
+                  "`/listmembers` - View a simple list of all members.\n"
+                  "`/viewmember` - See a detailed profile for one member.",
             inline=False
         )
 
         embed.add_field(
-            name="📝 Responsibility Management",
-            value="`/addresponsibility` - Adds a responsibility to a member.",
-            inline=False
-        )
-
-        embed.add_field(
-            name="🧠 AI Rule Management",
-            value="`/viewrules` - Shows the current rules for the AI.\n"
-                  "`/addrule` - Adds a new rule for the AI.\n"
-                  "`/deleterule` - Deletes a rule by its number.",
+            name="📝 Responsibility & Rule Management",
+            value="`/addresponsibility` - Add a responsibility to a member.\n"
+                  "`/deleteresponsibility` - Delete a responsibility by its ID.\n"
+                  "`/viewresponsibilities` - See a list of all responsibilities.\n"
+                  "`/addrule` - Add a new rule for the AI.\n"
+                  "`/deleterule` - Delete an AI rule by its ID.\n"
+                  "`/viewrules` - See all current AI rules.",
             inline=False
         )
         
         embed.add_field(
             name="✅ Task Management",
-            value="`/assigntask` - Uses AI to create and assign tasks for an event.\n"
-                  "`/tasks` - Views all pending tasks (or tasks for one member).\n"
-                  "`/addtask` - Manually adds a new task.\n"
-                  "`/completetask` - Marks a task as complete by its ID.",
+            value="`/assigntask` - (AI) Create and assign tasks for an event.\n"
+                  "`/addtask` - Manually add a new task.\n"
+                  "`/tasks` - View all pending tasks.\n"
+                  "`/completetask` - Mark a task as complete by its ID.",
             inline=False
         )
-        
-        embed.set_footer(text="Just start typing a command to see its specific options!")
 
-        # Send the embed
-        await interaction.response.send_message(embed=embed, ephemeral=False) # change to True if you want only you can see
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(HelpCog(bot))

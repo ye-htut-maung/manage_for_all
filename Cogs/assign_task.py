@@ -5,7 +5,7 @@ import json
 import os
 from google import genai
 from dotenv import load_dotenv
-from utils.data_manager import load_rules, save_tasks
+from utils.data_manager import add_task_to_db, get_tasks_from_db, update_task_status_in_db, get_member_id_by_name, get_all_rules_from_db, get_all_members_details
 import asyncio
 
 class Tasks(commands.Cog):
@@ -16,26 +16,52 @@ class Tasks(commands.Cog):
         except Exception as e:
             self.model = None
             print(f"Error initializing Gemini model: {e}")
-    async def _process_and_display_tasks(self, interaction: discord.Interaction, ai_response_text: str):
+
+    async def _process_and_display_tasks(self, interaction: discord.Interaction, ai_response_text: str, task_description:str):
         # helper function to parse, save and display tasks
         try:
             # parse the json response
             clean_json_text = ai_response_text.strip().lstrip("```json").rstrip("```")
             new_tasks = json.loads(clean_json_text)
 
-            # save the new tasks
-            self.bot.tasks.extend(new_tasks)
-            save_tasks(self.bot.tasks)
+            saved_tasks = [] # A new list to hold tasks after they get an ID from the DB
 
-            # display
+
+            # add tasks to the database one by one
+            for task in new_tasks:
+                assignee_name = task.get("assigned_to")
+                task_desc = task.get("task")
+                if assignee_name and task_desc:
+                    member_id = await get_member_id_by_name(self.bot.db_pool, assignee_name)
+                    if member_id:
+                        new_task_id = await add_task_to_db(self.bot.db_pool, member_id, task_desc)
+                        if new_task_id:
+                            task['id'] = new_task_id
+                            saved_tasks.append(task)
+                    else:
+                        print(f"Could not find member ID for {assignee_name}, task skipped")
+                else:
+                    print(f"something is missing with assignee_name:{assignee_name} or task_desc:{task_desc}")
+            
+            if not saved_tasks:
+                await interaction.followup.send("The AI returned tasks, but they could not be saved. Please check member names.")
+                return
+
             embed = discord.Embed(
-                title="✅ New Tasks Assigned",
+                title="✅ New Tasks Assigned & Saved to Database",
+                description=f"Based on the request: *'{task_description}'*",
                 color=discord.Color.green()
             )
-            for task in new_tasks:
-                assignee = task.get("assigned_to", "N/A")
-                task_desc = task.get("task", "No description")
-                embed.add_field(name=f"👤 {assignee}", value=f"**Task:** {task_desc}", inline=False)
+            for task in saved_tasks:
+                embed.add_field(
+                    name=f"👤 {task['assigned_to']}",
+                    # Display the new Task ID
+                    value=f"**Task #{task['id']}:** {task['task']}",
+                    inline=False
+                )
+        
+
+            
             
             await interaction.followup.send(embed=embed)
 
@@ -53,7 +79,11 @@ class Tasks(commands.Cog):
         if not self.ai_client:
             await interaction.response.send_message("Sorry, the AI model is not configured correctly. Please check the API key.")
             return
-        rules = load_rules()
+        
+        rules = await get_all_rules_from_db(self.bot.db_pool)
+        members = await get_all_members_details(self.bot.db_pool)
+
+
         if not rules:
             await interaction.response.send_message("⚠️ **Error:** No prompt rules are defined. A user must add rules using the `>addrule` command before tasks can be assigned.")
             return
@@ -61,9 +91,8 @@ class Tasks(commands.Cog):
         # Use defer() to acknoledge the command and show a "Thinking..." state
         await interaction.response.defer()
 
-        formatted_rules = "\n".join(f"{i+1}. {rule}" for i, rule in enumerate(rules))
-
-        json_members_context = json.dumps(self.bot.members, indent = 2)
+        formatted_rules = "\n".join(f"{rule['id']}. {rule['rule_text']}" for rule in rules)
+        json_members_context = json.dumps(members, indent=2)
 
         output_format = """
             Your final output MUST be a valid JSON array of objects. 
@@ -140,16 +169,7 @@ class Tasks(commands.Cog):
                 except asyncio.TimeoutError:
                     await interaction.followup.send("You took too long to reply. Please start the command again.")
                     return
-            await self._process_and_display_tasks(interaction, ai_response_text)
-
-            # Send the response in chunks (Discord only accept 2000 characters)
-            # Use followup.send() for all messages after defer()
-            # if len(ai_response_text) > 2000:
-            #     for i in range(0, len(ai_response_text), 2000):
-            #         chunk = ai_response_text[i:i+2000]
-            #         await interaction.followup.send(chunk)
-            # else:
-            #     await interaction.followup.send(ai_response_text)
+            await self._process_and_display_tasks(interaction, ai_response_text, task_description)
 
 
         except Exception as e:
@@ -159,48 +179,26 @@ class Tasks(commands.Cog):
     @app_commands.command(name="tasks", description="View all pending tasks or tasks from a specific member")
     @app_commands.describe(member="(Optional) The member whose tasks you want to see.")
     async def view_tasks(self, interaction: discord.Interaction, member: str = None):
-        tasks=self.bot.tasks
-        pending_tasks = [t for t in tasks if t.get("status", "pending") == "pending"]
-
-        if not pending_tasks:
-            await interaction.response.send_message("There are no pending tasks!")
+        tasks_records = await get_tasks_from_db(self.bot.db_pool, member)
+        if not tasks_records:
+            await interaction.response.send_message("🎉 There are no pending tasks!")
             return
+        
         embed = discord.Embed(title="Pending Tasks", color=discord.Color.blue())
 
-        if member:
-            member_tasks = [t for t in pending_tasks if t.get("assigned_to", "").lower() == member.lower()]
-
-            if not member_tasks:
-                await interaction.response.send_message(f"No pending tasks found for **{member}**.")
-                return
-            embed.title = f"Pending Tasks for {member}"
-            tasks_to_display = member_tasks
-        else:
-            tasks_to_display = pending_tasks
-        for task in tasks_to_display:
-            task_id = task.get("id", "N/A")
-            task_desc = task.get("task", "No description")
-            assignee = task.get("assigned_to", "N/A")
-            embed.add_field(
-                name=f"Task #{task_id} (Assigned to: {assignee})", 
-                value=task_desc, 
-                inline=False
-            )
-    
+        embed = discord.Embed(title=f"📋 Pending Tasks for {member}" if member else "📋 All Pending Tasks", color=discord.Color.blue())
+        for task in tasks_records:
+            embed.add_field(name=f"Task #{task['id']} (Assigned to: {task['assigned_to']})", value=task['task_description'], inline=False)
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="completetask", description="Marks a task as complete by its ID.")
     @app_commands.describe(task_id="The ID number of the task to complete.")
     async def complete_task(self, interaction: discord.Interaction, task_id: int):
-        task_found = False
-        for task in self.bot.tasks:
-            if task.get("id") == task_id:
-                task["status"] = "complete"
-                task_found = True
-                break
         
-        if task_found:
-            save_tasks(self.bot.tasks)
+        updated_id = await update_task_status_in_db(self.bot.db_pool, task_id, "complete")
+        
+        if updated_id:
             await interaction.response.send_message(f"✅ Task #{task_id} has been marked as complete.")
         else:
             await interaction.response.send_message(f"❌ Error: Task #{task_id} was not found.", ephemeral=True)
@@ -209,21 +207,18 @@ class Tasks(commands.Cog):
     @app_commands.command(name="addtask", description="Manually adds a new task.")
     @app_commands.describe(member="The name of the member to assign the task to.", description="The description of the task.")
     async def add_task(self, interaction: discord.Interaction, member: str, description: str):
-        # Find the highest existing ID to create a new unique ID
-        # TODO find better way to generate id
-        new_id = max([t.get("id", 0) for t in self.bot.tasks] + [0]) + 1
+        
+        member_id = await get_member_id_by_name(self.bot.db_pool, member)
+        if not member_id:
+            await interaction.response.send_message(f"❌ Error: Member '{member}' not found.", ephemeral=True)
+            return
 
-        new_task = {
-            "id": new_id,
-            "assigned_to": member,
-            "task": description,
-            "status": "pending"
-        }
-        
-        self.bot.tasks.append(new_task)
-        save_tasks(self.bot.tasks)
-        
-        await interaction.response.send_message(f"✅ Manually added Task #{new_id} for **{member}**.")
+        new_task_id = await add_task_to_db(self.bot.db_pool, member_id, description)
+        if new_task_id:
+            await interaction.response.send_message(f"✅ Manually added Task #{new_task_id} for **{member}**.")
+        else:
+            await interaction.response.send_message("❌ An error occurred while adding the task.", ephemeral=True)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Tasks(bot))
