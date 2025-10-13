@@ -13,3 +13,4 @@ utils/__pycache__
 .vscode/
 *.pyc
 postgres-data
+db_scripts.md
