@@ -1,3 +1,3 @@
 Club Management & Task Assignment Bot 🤖
 
-# IN PROGRESS
+In progress of updating readme.md
