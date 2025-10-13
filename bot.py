@@ -13,12 +13,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 DB_PW = os.getenv('DB_PW')
 DB_NAME = os.getenv('DB_NAME')
 DB_USER = os.getenv('DB_USER')
-allowed_ids_str = os.getenv('ALLOWED_CHANNEL_IDS')
-if allowed_ids_str:
-    ALLOWED_CHANNEL_IDS = [int(id_str) for id_str in allowed_ids_str.split(',')]
-else:
-    ALLOWED_CHANNEL_IDS = []
-    print("WARNING: ALLOWED_CHANNEL_IDS was not found in the .env file.")
+DB_HOST = os.getenv('DB_HOST')
 
 
 class MyBot(commands.Bot):
@@ -34,7 +29,10 @@ class MyBot(commands.Bot):
         # ----- DATABASE CONNECTION -----
         try:
             self.db_pool = await asyncpg.create_pool(
-                database=DB_NAME, user=DB_USER, password=DB_PW
+                host = DB_HOST,
+                database=DB_NAME, 
+                user=DB_USER, 
+                password=DB_PW
             )
             print("Successfully connected to the PostgreSQL database.")
         except Exception as e:
@@ -55,10 +53,6 @@ class MyBot(commands.Bot):
 
 
 bot = MyBot()
-
-# @bot.check
-# async def restrict_to_allowed_channels(ctx):
-#     return ctx.channel.id in ALLOWED_CHANNEL_IDS
 
 bot.run(TOKEN)
 

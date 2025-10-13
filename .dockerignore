@@ -1,0 +1,18 @@
+# Git and IDE metadata
+.git
+.gitignore
+.ropeproject/
+.vscode/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+
+# Test scripts and other notes
+NOTES.md
+journal.md
+DB_scripts.md
+
+# IMPORTANT: Never include your secrets file in the image
+.env
