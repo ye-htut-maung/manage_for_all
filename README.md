@@ -67,3 +67,5 @@ Manage For All is a discord bot that can assgin tasks to board members of a club
 - Implement meeting scheduling and notification via DM
 
 - Moving the hosting to cloud from personal server
+
+- Delete feature for task (other than mark complete)
